@@ -1,0 +1,1 @@
+// JS logic for posture detection with Firebase and Chart.js
