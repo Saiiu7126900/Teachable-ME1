@@ -1,137 +1,124 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ตรวจจับการนั่ง (Smart Posture)</title>
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- TensorFlow -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
+  <title>ตรวจจับการนั่ง</title>
   <style>
     body {
       font-family: 'Arial', sans-serif;
+      text-align: center;
       margin: 0;
-      padding: 20px;
-      background: #f0f4f8;
-      color: #333;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
-
     h1 {
-      text-align: center;
-      color: #2c3e50;
+      color: #333;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
     }
-
-    .controls {
-      text-align: center;
+    #time {
+      font-size: 1.2rem;
       margin-bottom: 20px;
+      color: #555;
     }
-
+    canvas {
+      border: 2px solid #4fa1f3;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    .button-container {
+      margin: 20px 0;
+    }
     button {
-      margin: 5px;
-      padding: 10px 20px;
+      margin: 10px;
+      padding: 12px 24px;
       font-size: 1rem;
+      color: #fff;
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      transition: 0.2s ease;
+      transition: background-color 0.3s ease, transform 0.2s ease;
     }
-
-    button:hover {
-      transform: scale(1.05);
-    }
-
-    canvas {
-      display: block;
-      margin: 0 auto;
-      border: 2px solid #3498db;
-      border-radius: 10px;
-    }
-
+    button:hover { transform: scale(1.05); }
+    button:active { transform: scale(0.95); }
+    button:nth-child(1) { background-color: #28a745; }
+    button:nth-child(1):hover { background-color: #218838; }
+    button:nth-child(2) { background-color: #dc3545; }
+    button:nth-child(2):hover { background-color: #c82333; }
+    button:nth-child(3) { background-color: #fd7e14; }
+    button:nth-child(3):hover { background-color: #e86b10; }
     #label-container {
-      text-align: center;
-      margin-top: 15px;
+      margin-top: 20px;
+      width: 90%;
+      max-width: 400px;
     }
-
+    .progress-bar {
+      height: 25px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      font-weight: bold;
+    }
+    .green-bar { background-color: #28a745; }
+    .red-bar { background-color: #dc3545; }
     #alert-box {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background-color: #e74c3c;
+      background-color: #dc3545;
       color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      font-size: 1rem;
       display: none;
+      z-index: 1000;
       animation: fadeInOut 4s ease-in-out;
     }
-
     @keyframes fadeInOut {
       0% { opacity: 0; transform: translateY(20px); }
       10% { opacity: 1; transform: translateY(0); }
       90% { opacity: 1; transform: translateY(0); }
       100% { opacity: 0; transform: translateY(20px); }
     }
-
-    #chart {
-      max-width: 600px;
-      margin: 30px auto;
-    }
-
-    .options {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .options label {
-      font-size: 0.95rem;
-    }
   </style>
 </head>
 <body>
-  <h1>ระบบตรวจจับการนั่ง</h1>
-
-  <div class="controls">
-    <button style="background: #27ae60; color: white;" onclick="init()">Start</button>
-    <button style="background: #c0392b; color: white;" onclick="stop()">Stop</button>
-    <button style="background: #f39c12; color: white;" onclick="reset()">Reset</button>
+  <h1>ตรวจจับการนั่ง</h1>
+  <div id="time"></div>
+  <div class="button-container">
+    <button onclick="init()">Start</button>
+    <button onclick="stop()">Stop</button>
+    <button onclick="reset()">Reset</button>
   </div>
-
   <canvas id="canvas" width="400" height="400"></canvas>
   <div id="label-container"></div>
-
-  <div class="options">
-    <label><input type="checkbox" id="soundToggle" checked /> เปิดเสียงแจ้งเตือน</label>
-  </div>
-
   <div id="alert-box"></div>
-  <audio id="alertSound" src="warning.mp3" preload="auto"></audio>
+  <audio id="alertSound" src="https://www.myinstants.com/media/sounds/alert.mp3"></audio>
 
-  <canvas id="chart"></canvas>
-
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
   <script>
-    // 🔥 ใส่ Firebase config ของคุณที่นี่
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "XXXXXX",
-      appId: "YOUR_APP_ID"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
     const URL = "https://teachablemachine.withgoogle.com/models/xtgDT3JxI/";
     let model, webcam, ctx, labelContainer, maxPredictions;
     let isRunning = false;
+
+    function updateTime() {
+      const now = new Date();
+      document.getElementById("time").textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
 
     async function init() {
       const modelURL = URL + "model.json";
@@ -140,18 +127,22 @@
       model = await tmPose.load(modelURL, metadataURL);
       maxPredictions = model.getTotalClasses();
 
-      webcam = new tmPose.Webcam(400, 400, true);
+      const size = 400;
+      const flip = true;
+      webcam = new tmPose.Webcam(size, size, flip);
       await webcam.setup();
       await webcam.play();
       isRunning = true;
       window.requestAnimationFrame(loop);
 
       const canvas = document.getElementById("canvas");
+      canvas.width = size;
+      canvas.height = size;
       ctx = canvas.getContext("2d");
       labelContainer = document.getElementById("label-container");
     }
 
-    async function loop(timestamp) {
+    async function loop() {
       if (!isRunning) return;
       webcam.update();
       await predict();
@@ -162,32 +153,23 @@
       const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
       const prediction = await model.predict(posenetOutput);
 
-      let showWarning = false;
-      let outputHTML = "";
-
+      let correct = 0, incorrect = 0;
       for (let i = 0; i < maxPredictions; i++) {
-        let className = prediction[i].className;
-        const prob = prediction[i].probability.toFixed(2);
-
-        if (className === "Class 1") {
-          className = "นั่งถูกหลัก";
-          outputHTML += `<div style="color: green">${className}: ${(prob * 100).toFixed(0)}%</div>`;
-        } else if (className === "Class 2") {
-          className = "นั่งผิดหลัก";
-          outputHTML += `<div style="color: red">${className}: ${(prob * 100).toFixed(0)}%</div>`;
-
-          if (prob > 0.5) {
-            showWarning = true;
-            logBadPosture();
-            logToFirebase();
-          }
-        }
+        if (prediction[i].className === "Class 1") correct = prediction[i].probability;
+        if (prediction[i].className === "Class 2") incorrect = prediction[i].probability;
       }
 
-      labelContainer.innerHTML = outputHTML;
+      correct = Math.round(correct * 100);
+      incorrect = Math.round(incorrect * 100);
+
+      labelContainer.innerHTML = `
+        <div class="progress-bar green-bar" style="width:${correct}%">นั่งถูกหลัก: ${correct}%</div>
+        <div class="progress-bar red-bar" style="width:${incorrect}%">นั่งผิดหลัก: ${incorrect}%</div>
+      `;
+
       drawPose(pose);
 
-      if (showWarning) {
+      if (incorrect > 50) {
         showAlert("คุณนั่งผิดหลักการยศาสตร์");
       }
     }
@@ -196,83 +178,30 @@
       if (webcam.canvas) {
         ctx.drawImage(webcam.canvas, 0, 0);
         if (pose) {
-          const minConfidence = 0.5;
-          tmPose.drawKeypoints(pose.keypoints, minConfidence, ctx);
-          tmPose.drawSkeleton(pose.keypoints, minConfidence, ctx);
+          const minPartConfidence = 0.5;
+          tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+          tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
         }
       }
     }
 
     function stop() {
       isRunning = false;
-      webcam.stop();
+      if (webcam) webcam.stop();
     }
 
     function reset() {
-      localStorage.removeItem("badPostureLogs");
-      location.reload();
+      window.location.reload();
     }
 
     function showAlert(message) {
       const alertBox = document.getElementById("alert-box");
       alertBox.innerText = message;
       alertBox.style.display = "block";
-
-      const soundOn = document.getElementById("soundToggle").checked;
-      if (soundOn) {
-        document.getElementById("alertSound").play();
-      }
-
-      setTimeout(() => {
-        alertBox.style.display = "none";
-      }, 4000);
+      alertBox.style.animation = "fadeInOut 4s ease-in-out";
+      document.getElementById("alertSound").play();
+      setTimeout(() => { alertBox.style.display = "none"; }, 4000);
     }
-
-    function logBadPosture() {
-      const logs = JSON.parse(localStorage.getItem("badPostureLogs")) || [];
-      logs.push({ time: new Date().toISOString() });
-      localStorage.setItem("badPostureLogs", JSON.stringify(logs));
-    }
-
-    function logToFirebase() {
-      const entry = { time: new Date().toISOString(), status: "bad" };
-      db.ref("posture_logs").push(entry);
-    }
-
-    function renderChart() {
-      const logs = JSON.parse(localStorage.getItem("badPostureLogs")) || [];
-      const counts = {};
-
-      logs.forEach(log => {
-        const day = new Date(log.time).toLocaleDateString();
-        counts[day] = (counts[day] || 0) + 1;
-      });
-
-      const labels = Object.keys(counts);
-      const data = Object.values(counts);
-
-      new Chart(document.getElementById("chart"), {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'จำนวนครั้งที่นั่งผิด',
-            data: data,
-            backgroundColor: '#e74c3c'
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
-      });
-    }
-
-    window.onload = () => {
-      renderChart();
-    };
   </script>
 </body>
 </html>
